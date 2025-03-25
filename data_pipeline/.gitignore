@@ -1,0 +1,8 @@
+__pycache__
+.venv/
+.jukit/
+models/
+datasets/
+neo4j_data/
+
+.env
