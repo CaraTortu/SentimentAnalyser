@@ -60,4 +60,5 @@ while in_text != "exit":
 
     embbeded = [embed(txt) for txt in clean_text(text)]
     padded = pad_sequences(embbeded, maxlen=max_text_len)
+    print(padded[0])
     print(f"SCORE: {model.predict(padded)}")

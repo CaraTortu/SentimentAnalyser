@@ -1,0 +1,17 @@
+[package]
+name = "rust_pipeline"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenv = "0.15.0"
+finalfusion = "0.18.0"
+indicatif = "0.17.11"
+log = "0.4.27"
+mail-parser = "0.10.2"
+neo4rs = "0.8.0"
+polars = { version = "0.46.0", features = ["dtype-struct", "lazy", "rows"] }
+rayon = "1.10.0"
+regex = "1.11.1"
+tensorflow = {version = "0.21.0", features = ["tensorflow_gpu"]}
+tokio = { version = "1.44.1", features = ["full"] }

@@ -114,4 +114,4 @@ except:
 
 # Save model to disk
 model.save("models/review_sentiment.keras")
-model.save("../data_pipeline/models/review_sentiment.keras")
+model.export("../data_pipeline/models/review")

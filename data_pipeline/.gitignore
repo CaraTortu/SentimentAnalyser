@@ -1,8 +1,6 @@
-__pycache__
-.venv/
-.jukit/
-models/
-datasets/
-neo4j_data/
-
+/target
+/datasets
+/models
+/neo4j_data
 .env
+Cargo.lock

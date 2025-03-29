@@ -111,4 +111,4 @@ res: History = model.fit(
 
 # Save model to disk
 model.save("./models/emails_sentiment.keras")
-model.save("../data_pipeline/models/emails_sentiment.keras")
+model.export("../data_pipeline/models/emails")
