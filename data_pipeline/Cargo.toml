@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+clap = { version = "4.5.34", features = ["derive"] }
 dotenv = "0.15.0"
 finalfusion = "0.18.0"
 indicatif = "0.17.11"
@@ -15,3 +16,9 @@ rayon = "1.10.0"
 regex = "1.11.1"
 tensorflow = {version = "0.21.0", features = ["tensorflow_gpu"]}
 tokio = { version = "1.44.1", features = ["full"] }
+
+[profile.release]
+#opt-level = 3   
+#strip = true     
+#lto = true      
+

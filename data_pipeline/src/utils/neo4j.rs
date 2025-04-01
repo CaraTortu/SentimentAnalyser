@@ -49,15 +49,19 @@ impl Neo4JService {
         Ok(Self { graph })
     }
 
-    pub async fn add_data(&self, df: DataFrame, project_name: &str) -> Result<(), ()> {
+    pub async fn add_data(&self, df: DataFrame, project_name: &str) -> Result<(), String> {
         let project_name = project_name.to_string();
         let sentiment_query = INSERT_SENTIMENT_QUERY.to_string();
 
         // Create project
-        self.graph
+        let creation_res = self
+            .graph
             .run(query(CREATE_PROJECT_QUERY).param("datasetName", project_name.to_string()))
-            .await
-            .unwrap();
+            .await;
+
+        if let Err(_) = creation_res {
+            return Err("Could not connect to database. Is your .env okay?".into());
+        }
 
         // Set up progress bar
         let progress_bar = Arc::new(ProgressBar::new(df.shape().0 as u64));
@@ -70,7 +74,7 @@ impl Neo4JService {
         progress_bar.enable_steady_tick(Duration::from_millis(100));
 
         // Create users
-        let tasks: Vec<JoinHandle<()>> = df
+        let tasks: Vec<JoinHandle<Result<(), String>>> = df
             .into_struct("entries".into())
             .into_series()
             .iter()
@@ -100,13 +104,20 @@ impl Neo4JService {
                         .param("sentiment", row.mean_sentiment)
                         .param("emailsSent", row.email_count);
 
-                    graph.run(db_query).await.unwrap();
+                    match graph.run(db_query).await {
+                        Err(_) => Err("Could not connect to database. Is your .env okay?".into()),
+                        Ok(_) => Ok(()),
+                    }
                 });
             })
             .collect();
 
         for r in tasks {
-            r.await.unwrap();
+            let task_res = r.await.unwrap();
+
+            if let Err(_) = task_res {
+                return task_res;
+            }
         }
         progress_bar.finish();
 

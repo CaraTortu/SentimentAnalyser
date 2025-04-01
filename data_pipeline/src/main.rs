@@ -1,9 +1,9 @@
 mod utils;
-
+use clap::{Parser, command};
 use dotenv::dotenv;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
-use std::{path::Path, process::exit, time::Duration};
+use std::{path::PathBuf, process::exit, time::Duration};
 use utils::{
     csv::read_email_csv, data_parser::DataOutput, emails::parse_email, logger::SimpleLogger,
     neo4j::Neo4JService, sentiment::SentimentAnalyser, text::TextCleaner,
@@ -11,14 +11,46 @@ use utils::{
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about=None)]
+struct Args {
+    /// Path of the CSV file to parse
+    #[arg(short, long)]
+    csv_path: PathBuf,
+
+    /// Project name to assign in neo4j
+    #[arg(short, long)]
+    project_name: String,
+
+    /// Log debug information
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
+
+    /// CSV column for the email message
+    #[arg(short, long)]
+    message_col: String,
+
+    /// Maximum emails to parse from the CSV
+    #[arg(long)]
+    max_emails: Option<u32>,
+}
+
 #[tokio::main]
 async fn main() {
     // Read .env file
     dotenv().ok();
 
+    // Parse CLI Arguments
+    let args = Args::parse();
+
     // Setup logger
+    let log_level = match args.verbose {
+        true => log::LevelFilter::Debug,
+        false => log::LevelFilter::Error,
+    };
+
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(log::LevelFilter::Debug))
+        .map(|()| log::set_max_level(log_level))
         .expect("[-] Unable to setup logger");
 
     // Connect to neo4j
@@ -33,23 +65,23 @@ async fn main() {
 
     // Read CSV
     info!("Reading email dataset");
-    let csv_path = Path::new("./datasets/emails.csv");
-    let email_df = read_email_csv(&csv_path, Some(1000));
+    let email_df = read_email_csv(&args.csv_path, args.max_emails);
 
     if let Err(_) = email_df {
-        error!("Could not open dataset: {}", csv_path.to_str().unwrap());
+        error!(
+            "Could not open dataset: {}",
+            args.csv_path.to_str().unwrap()
+        );
         exit(1);
     }
 
     // Read message column
     let email_df = email_df.unwrap();
 
-    // TODO: allow setting through CLI
-    let email_col_name = "message";
-    let email_messages = email_df.column(email_col_name);
+    let email_messages = email_df.column(&args.message_col);
 
     if let Err(_) = email_messages {
-        error!("Could not get column '{}' from dataset", email_col_name);
+        error!("Could not get column '{}' from dataset", args.message_col);
         exit(1);
     }
 
@@ -122,10 +154,9 @@ async fn main() {
     // Save to Neo4J
     info!("Adding data to Neo4J");
 
-    // TODO: allow setting project name through CLI
-    let res = neoservice.add_data(clean_df, "test").await;
-    if let Err(_) = res {
-        error!("Could not add users to Neo4J");
+    let res = neoservice.add_data(clean_df, &args.project_name).await;
+    if let Err(s) = res {
+        error!("{s}");
         exit(1);
     }
 
