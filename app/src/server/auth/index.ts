@@ -10,9 +10,6 @@ export const auth = betterAuth({
         provider: "pg",
     }),
     baseURL: getBaseUrl(),
-    advanced: {
-        useSecureCookies: true,
-    },
     account: {
         accountLinking: {
             enabled: true,
