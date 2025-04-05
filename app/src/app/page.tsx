@@ -11,6 +11,8 @@ export default async function Home() {
         <main className="flex min-h-screen flex-col p-4">
             <NavBar session={session?.session} />
 
+            <div className="pt-14 flex flex-col gap-4">
+            </div>
         </main>
     );
 }

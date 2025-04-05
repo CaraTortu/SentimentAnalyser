@@ -1,5 +1,3 @@
-# |%%--%%| <49LIAWWqS3|YckzXtYsAr>
-
 import json
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -10,105 +8,87 @@ from gensim.models import Word2Vec
 
 import keras
 from keras.api.preprocessing.sequence import pad_sequences
-from keras.api.callbacks import EarlyStopping, History, ModelCheckpoint
+from keras.api.callbacks import EarlyStopping, ModelCheckpoint
 
 tqdm.pandas()
 
-# |%%--%%| <YckzXtYsAr|6COvVKbRpI>
-r"""°°°
-# Run the thing!
-°°°"""
-# |%%--%%| <6COvVKbRpI|6KaSnXw5HG>
 
-with open("./models/emails_modelInfo.json", "r") as f:
-    relevant_data = json.load(f)
+def train_email_model(data: pd.DataFrame):
+    with open("./models/emails_modelInfo.json", "r") as f:
+        relevant_data = json.load(f)
 
-print(f"[i] Using parameters: {relevant_data}")
+    print(f"[i] Using parameters: {relevant_data}")
 
-# |%%--%%| <6KaSnXw5HG|To3qwvntx6>
+    print("[i] Loading embedding model")
+    embedding_model: Word2Vec = gensim.downloader.load(
+        "glove-wiki-gigaword-100"
+    )  # pyright: ignore
 
-print("[i] Loading embedding model")
-embedding_model: Word2Vec = gensim.downloader.load(
-    "glove-wiki-gigaword-100"
-)  # pyright: ignore
+    def embed(txt: str):
+        return [
+            embedding_model.key_to_index[word]  # pyright: ignore
+            for word in txt.split(" ")
+            if word in embedding_model  # pyright: ignore
+        ]
 
+    print("[i] Loading dataset")
 
-def embed(txt: str):
-    return [
-        embedding_model.key_to_index[word]  # pyright: ignore
-        for word in txt.split(" ")
-        if word in embedding_model  # pyright: ignore
-    ]
+    X = data["content"]
+    Y = data["sentiment"]
 
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.05)
 
-# |%%--%%| <To3qwvntx6|ZwQkIvg91P>
+    X_train_seq = [embed(txt) for txt in tqdm(X_train, "Embedding XTRAIN")]
+    X_test_seq = [embed(txt) for txt in tqdm(X_test, "Embedding XTEST")]
 
-print("[i] Loading dataset")
-data = pd.read_csv("./datasets/emails_cleaned.csv")[["content", "sentiment"]].dropna()
+    model_checkpoint_callback = ModelCheckpoint(
+        filepath=f"./models/emails_model.keras",
+        save_weights_only=False,
+        monitor="val_loss",
+        mode="min",
+        save_best_only=True,
+    )
+    callbacks = [EarlyStopping(patience=3), model_checkpoint_callback]
 
-X = data["content"]
-Y = data["sentiment"]
+    max_text_len = relevant_data["max_text_len"]
 
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.05)
+    keras.backend.clear_session()
+    model = get_keras_model(
+        embedding_model.vectors,  # pyright: ignore
+        relevant_data["lstm_units"],
+        relevant_data["neurons_dense"],
+        relevant_data["dropout_rate"],
+        max_text_len,
+    )
 
-X_train_seq = [embed(txt) for txt in tqdm(X_train, "Embedding XTRAIN")]
-X_test_seq = [embed(txt) for txt in tqdm(X_test, "Embedding XTEST")]
+    model.summary()
 
-# |%%--%%| <ZwQkIvg91P|PYIXTP49nu>
+    learning_rate: float = relevant_data["learning_rate"]  # pyright: ignore
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
 
-model_checkpoint_callback = ModelCheckpoint(
-    filepath=f"./models/emails_model.keras",
-    save_weights_only=False,
-    monitor="val_loss",
-    mode="min",
-    save_best_only=True,
-)
-callbacks = [EarlyStopping(patience=3), model_checkpoint_callback]
+    NUM_EPOCHS: int = relevant_data["num_epochs"]  # pyright: ignore
 
-# |%%--%%| <PYIXTP49nu|TrbzpXrj0N>
+    # Specify the training configuration.
+    model.compile(
+        optimizer=optimizer,  # pyright: ignore
+        loss="mse",
+        metrics=["mae"],
+    )
 
-max_text_len = relevant_data["max_text_len"]
+    # pad the sequences so they're the same length.
+    X_train_seq_padded = pad_sequences(X_train_seq, maxlen=max_text_len)
+    X_test_seq_padded = pad_sequences(X_test_seq, maxlen=max_text_len)
 
-keras.backend.clear_session()
-model = get_keras_model(
-    embedding_model.vectors,  # pyright: ignore
-    relevant_data["lstm_units"],
-    relevant_data["neurons_dense"],
-    relevant_data["dropout_rate"],
-    max_text_len,
-)
+    # fit the model using a 20% validation set.
+    model.fit(
+        x=X_train_seq_padded,
+        y=Y_train,
+        batch_size=relevant_data["batch_size"],
+        epochs=NUM_EPOCHS,
+        validation_data=(X_test_seq_padded, Y_test),
+        callbacks=callbacks,
+    )
 
-model.summary()
-
-
-learning_rate: float = relevant_data["learning_rate"]  # pyright: ignore
-optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-
-NUM_EPOCHS: int = relevant_data["num_epochs"]  # pyright: ignore
-
-# Specify the training configuration.
-model.compile(
-    optimizer=optimizer,  # pyright: ignore
-    loss="mse",
-    metrics=["mae"],
-)
-
-# pad the sequences so they're the same length.
-X_train_seq_padded = pad_sequences(X_train_seq, maxlen=max_text_len)
-X_test_seq_padded = pad_sequences(X_test_seq, maxlen=max_text_len)
-
-# fit the model using a 20% validation set.
-res: History = model.fit(
-    x=X_train_seq_padded,
-    y=Y_train,
-    batch_size=relevant_data["batch_size"],
-    epochs=NUM_EPOCHS,
-    validation_data=(X_test_seq_padded, Y_test),
-    callbacks=callbacks,
-)
-
-# |%%--%%| <TrbzpXrj0N|94VNjw8J8m>
-
-# Save model to disk
-model.save("./models/emails_sentiment.keras")
-model.export("../data_pipeline/models/emails")
+    # Save model to disk
+    model.save("./models/emails_sentiment.keras")
+    model.export("../data_pipeline/models/emails")

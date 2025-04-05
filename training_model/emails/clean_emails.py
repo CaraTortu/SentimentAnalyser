@@ -1,25 +1,18 @@
-# |%%--%%| <Tz0ulJd8po|kjeOvYt42x>
 import pandas as pd
 from tqdm import tqdm
-
 from utils.utils import clean_text
 
 tqdm.pandas()
 
-# |%%--%%| <kjeOvYt42x|cnBKfIjgwL>
 
-print("[i] Reading dataset")
-data = pd.read_csv("./datasets/emails_labelled.csv")
+def clean_emails(data: pd.DataFrame, output_csv: bool = True) -> pd.DataFrame:
+    print("[i] Cleaning content")
+    data["content"] = clean_text(data["content"])  # pyright: ignore
 
-# |%%--%%| <cnBKfIjgwL|V7jo2OUTSh>
+    print("[i] Scaling values")
+    data["sentiment"] = data["sentiment"].progress_apply(lambda x: (x + 1) / 2)
 
-print("[i] Cleaning content")
-data["content"] = clean_text(data["content"])  # pyright: ignore
+    if output_csv:
+        data.to_csv("datasets/emails_cleaned.csv")
 
-
-print("[i] Scaling values")
-data["sentiment"] = data["sentiment"].progress_apply(lambda x: (x + 1) / 2)
-
-# |%%--%%| <V7jo2OUTSh|9mQfSZtv7a>
-
-data.to_csv("./datasets/emails_cleaned.csv")
+    return data
