@@ -8,6 +8,12 @@ This project is **NOT** finished yet, you can expect some bugs or breaking updat
 This project has been built in fulfillment of my college course for the Research in Emerging technologies and Project development modules.
 The aim of this project is to improve team selection through analysing the sentiment of emails and choosing people with the best relationships.
 
+## Main operations
+If you are messing around with this project, I have included a Makefile to make your life easier.
+
+- **docker-deploy**: Uses docker compose to deploy the neo4j and postgres containers 
+- **docker-start**: Uses docker compose to start the containers
+
 ## Project structure
 
 This project consists of 3 components:
@@ -52,8 +58,9 @@ The purpose of the web app is for the user to interact with the Neo4J database, 
 Usage:
 1. Install dependencies with your preferred package manager: `bun i`
 2. Make sure your **env** file is correct
-3. Compile the web app: `bun run build`
-4. Run the web app: `bun run start`
+3. Push your db tables: `bun run db:push`
+4. Compile the web app: `bun run build`
+5. Run the web app: `bun run start`
 
 Technologies used:
 - [Next.js](https://nextjs.org)
