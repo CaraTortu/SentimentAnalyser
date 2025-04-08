@@ -1,6 +1,6 @@
 "use client"
 
-import { ChartNetworkIcon, HouseIcon, type LucideIcon } from "lucide-react";
+import { HouseIcon, type LucideIcon } from "lucide-react";
 import { SidebarMenuButton, SidebarMenuItem } from "../../ui/sidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,11 +18,6 @@ export const NAV_OPTIONS: NavOption[] = [
         url: '/dashboard',
         icon: HouseIcon,
     },
-    {
-        name: 'Graphs',
-        url: '/dashboard/graphs',
-        icon: ChartNetworkIcon,
-    }
 ];
 
 export const NavbarItems: React.FC = () => {

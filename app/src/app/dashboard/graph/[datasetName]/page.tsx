@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { ReactFlow, Background, useNodesState, useEdgesState, type Node, Controls, MiniMap, type Edge } from "@xyflow/react";
 import * as d3 from "d3-force";
 import "@xyflow/react/dist/style.css";
@@ -34,7 +34,11 @@ const formSchema = z.object({
 
 const calculateValue = (sentiment: number, emailsSent: number) => 0.2 * Math.log(emailsSent) + sentiment
 
-export default function LayoutFlow() {
+export default function LayoutFlow({
+    params,
+}: {
+    params: Promise<{ datasetName: string }>
+}) {
     // Reactflow
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -44,6 +48,7 @@ export default function LayoutFlow() {
 
     // Data fetching
     const relationships = api.graphs.getRelationships.useMutation();
+    const { datasetName } = use(params)
     const [newData, setNewData] = useState(false)
     const form = useForm({
         defaultValues: {
@@ -55,7 +60,7 @@ export default function LayoutFlow() {
             onSubmit: formSchema
         },
         onSubmit: async ({ value }) => {
-            relationships.mutate({ email: value.emailSearch, endsWith: value.emailsEndWith, datasetName: "enron" })
+            relationships.mutate({ email: value.emailSearch, endsWith: value.emailsEndWith, datasetName })
             setHistory((prev) => [value, ...prev.slice(0, 10)])
         }
     });

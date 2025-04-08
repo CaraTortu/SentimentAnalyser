@@ -1,4 +1,6 @@
 import {
+    ChartNetworkIcon,
+    ChevronRight,
     ChevronsUpDown,
 } from "lucide-react"
 
@@ -6,6 +8,9 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
     SidebarHeader,
     SidebarInset,
     SidebarMenu,
@@ -22,12 +27,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../_comp
 import { Avatar, AvatarFallback } from "../_components/ui/avatar";
 import { NavbarItems } from "../_components/pages/dashboard/navbarItems";
 import { headers } from "next/headers";
+import { api } from "~/trpc/server";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../_components/ui/collapsible";
+import Link from "next/link";
 
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const user = await auth.api.getSession({
         headers: await headers()
     });
+
+    const graphNames = await api.graphs.getGraphs()
 
     return (
         <SidebarProvider>
@@ -42,6 +52,33 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
                     <SidebarMenu className="pt-5">
                         <NavbarItems />
                     </SidebarMenu>
+                    <Collapsible title="Graphs" defaultOpen className="group/collapsible px-2 py-0">
+                        <SidebarGroup className="py-0">
+                            <SidebarGroupLabel
+                                asChild
+                                className="group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            >
+                                <CollapsibleTrigger className="flex gap-2">
+                                    <ChartNetworkIcon />
+                                    Graphs
+                                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                                </CollapsibleTrigger>
+                            </SidebarGroupLabel>
+                            <CollapsibleContent>
+                                <SidebarGroupContent>
+                                    <SidebarMenu>
+                                        {graphNames.map((item) => (
+                                            <SidebarMenuItem key={item} className="px-2 rounded-md">
+                                                <SidebarMenuButton asChild>
+                                                    <Link href={`/dashboard/graph/${item}`}>- {item.charAt(0).toUpperCase() + item.slice(1,)}</Link>
+                                                </SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </CollapsibleContent>
+                        </SidebarGroup>
+                    </Collapsible>
                 </SidebarContent>
                 <SidebarFooter>
                     <SidebarMenu>
