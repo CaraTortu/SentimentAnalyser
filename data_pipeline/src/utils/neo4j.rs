@@ -2,15 +2,12 @@ use indicatif::{ProgressBar, ProgressStyle};
 use neo4rs::{ConfigBuilder, Graph, query};
 use polars::prelude::*;
 use std::{env, error::Error, time::Duration};
-use tokio::task::JoinHandle;
 
 static INSERT_SENTIMENT_QUERY: &str = "
 MATCH (p:Project {datasetName: $datasetName})
-MERGE (sender:User {email: $senderEmail})
-MERGE (receiver:User {email: $receiverEmail})
+MERGE (p)-[:OWNS]->(sender:User {email: $senderEmail})
+MERGE (p)-[:OWNS]->(receiver:User {email: $receiverEmail})
 MERGE (sender)-[r:SENTIMENT]-(receiver)
-MERGE (p)-[:OWNS]->(sender)
-MERGE (p)-[:OWNS]->(receiver)
 ON CREATE SET r.sentiment = $sentiment, r.emailsSent = $emailsSent
 ON MATCH SET r.sentiment = $sentiment, r.emailsSent = $emailsSent
 RETURN sender, receiver, r
@@ -74,7 +71,7 @@ impl Neo4JService {
         progress_bar.enable_steady_tick(Duration::from_millis(100));
 
         // Create users
-        let tasks: Vec<JoinHandle<Result<(), String>>> = df
+        let tasks: Vec<RowData> = df
             .into_struct("entries".into())
             .into_series()
             .iter()
@@ -87,38 +84,24 @@ impl Neo4JService {
                     mean_sentiment: row_values[3].try_extract().unwrap(),
                 }
             })
-            .into_iter()
-            .map(|row| {
-                let row = row.clone();
-                let graph = self.graph.clone();
-                let project_name = project_name.clone();
-                let sentiment_query = sentiment_query.clone();
-                let progress_bar = progress_bar.clone();
-
-                return tokio::spawn(async move {
-                    progress_bar.inc(1);
-                    let db_query = query(&sentiment_query)
-                        .param("datasetName", project_name)
-                        .param("senderEmail", row.from.clone())
-                        .param("receiverEmail", row.to.clone())
-                        .param("sentiment", row.mean_sentiment)
-                        .param("emailsSent", row.email_count);
-
-                    match graph.run(db_query).await {
-                        Err(_) => Err("Could not connect to database. Is your .env okay?".into()),
-                        Ok(_) => Ok(()),
-                    }
-                });
-            })
             .collect();
 
-        for r in tasks {
-            let task_res = r.await.unwrap();
+        for row in tasks {
+            let project_name = project_name.clone();
 
-            if let Err(_) = task_res {
-                return task_res;
+            let db_query = query(&sentiment_query)
+                .param("datasetName", project_name)
+                .param("senderEmail", row.from.clone())
+                .param("receiverEmail", row.to.clone())
+                .param("sentiment", row.mean_sentiment)
+                .param("emailsSent", row.email_count);
+
+            match self.graph.run(db_query).await {
+                Err(_) => return Err("Could not connect to database. Is your .env okay?".into()),
+                Ok(_) => progress_bar.inc(1),
             }
         }
+
         progress_bar.finish();
 
         Ok(())
