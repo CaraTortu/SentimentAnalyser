@@ -1,6 +1,6 @@
 "use client"
 
-import { Mail, Users } from "lucide-react"
+import { LoaderCircleIcon, Mail, Users } from "lucide-react"
 import {
     Bar,
     BarChart as RechartsBarChart,
@@ -23,6 +23,14 @@ const SENTIMENT_COLORS = ["#4ade80", "#f59e0b", "#ef4444"]
 export default function EmailSentimentDashboard() {
     const stats = api.graphs.getSentimentStats.useQuery()
     const topCommunicators = api.graphs.getTopCommunicators.useQuery()
+
+    if (stats.isLoading && topCommunicators.isLoading) {
+        return (
+            <main className="flex-1 flex items-center justify-center min-h-65hv">
+                <LoaderCircleIcon className="animate-spin" size={48} />
+            </main>
+        )
+    }
 
     return (
         <main className="flex-1 space-y-4 p-4 pt-6 md:p-8">
