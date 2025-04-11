@@ -49,6 +49,54 @@ Usage:
 
 After this is done running, you should have a Neo4J database filled with the data from the CSV file.
 
+#### Custom datasets
+If you would like to run the data pipeline with your own personal emails, you could generate the CSV file with the following script:
+
+```py
+import imaplib
+import email
+import pandas as pd
+
+# --- Configuration ---
+EMAIL = "myemail@example.com"
+PASSWORD = "myPassword"
+IMAP_SERVER = "mail.example.com"
+CSV_OUTPUT_FILE = "emails_example.csv"
+MAX_EMAILS = 200
+
+# --- Connect to IMAP ---
+mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+mail.login(EMAIL, PASSWORD)
+mail.select("inbox")  # change folder if needed
+
+# --- Search and fetch emails ---
+result, data = mail.search(None, "ALL")
+email_ids = data[0].split()[:MAX_EMAILS]
+
+records = []
+
+for eid in email_ids:
+    res, msg_data = mail.fetch(eid, "(RFC822)")
+    raw_email_bytes = msg_data[0][1]
+
+    # Extract date
+    msg = email.message_from_bytes(raw_email_bytes)
+    date = msg.get("Date", "")
+
+    # Convert raw email bytes to string (plaintext)
+    raw_email_str = raw_email_bytes.decode("utf-8", errors="replace")
+
+    # Add to dataset
+    records.append({"Date": date, "message": raw_email_str})
+
+mail.logout()
+
+# --- Save to CSV ---
+df = pd.DataFrame(records)
+df.to_csv(CSV_OUTPUT_FILE, index=False)
+print(f"Saved {len(df)} emails to {CSV_OUTPUT_FILE}")
+```
+
 ### Web app
 
 This component is found in the "app" directory, coded in mainly Typescript.
