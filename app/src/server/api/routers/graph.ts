@@ -13,6 +13,42 @@ WHERE u.email CONTAINS $email AND u2.email ENDS WITH $endsWith
 RETURN u.email, r.emailsSent, r.sentiment, u2.email
 `;
 
+const GET_SENTIMENT_DISTRIBUTION_QUERY = `
+MATCH (:User)-[r:SENTIMENT]-(:User)
+WITH DISTINCT r
+WITH 
+  count(r) AS total,
+  count(CASE WHEN r.sentiment > 0.75 THEN 1 END) AS positive,
+  count(CASE WHEN r.sentiment >= 0.3 AND r.sentiment <= 0.75 THEN 1 END) AS neutral,
+  count(CASE WHEN r.sentiment < 0.3 THEN 1 END) AS negative
+RETURN
+  round(toFloat(positive) / total * 100, 2) AS positivePercent,
+  round(toFloat(neutral) / total * 100, 2) AS neutralPercent,
+  round(toFloat(negative) / total * 100, 2) AS negativePercent
+`;
+
+const GET_TOTAL_EMAILS_QUERY = `
+MATCH (:User)-[r:SENTIMENT]-(:User)
+WITH DISTINCT r
+RETURN sum(r.emailsSent) AS totalEmailsSent
+`;
+
+const GET_USERS_WHO_SENT_MANY = `
+MATCH (u:User)-[r:SENTIMENT]-(u2:User)
+WITH u, sum(r.emailsSent) AS totalEmails
+WHERE totalEmails > 250
+RETURN count(DISTINCT u) AS chatters 
+`;
+
+const GET_LARGEST_CHATTERS = `
+MATCH (p:Project)-[:OWNS]->(u:User)
+MATCH (u)-[r:SENTIMENT]-(:User)
+WITH u.email AS userName, p.datasetName AS dataset, sum(r.emailsSent) AS totalEmails
+ORDER BY totalEmails DESC
+LIMIT 5
+RETURN userName, totalEmails, dataset
+`;
+
 type SentimentLink = {
     emailsSent: number;
     sentiment: number;
@@ -64,25 +100,61 @@ export const graphRouter = createTRPCRouter({
             return info;
         }),
 
-    getSentimentStats: publicProcedure.query(async ({}) => {
+    getSentimentStats: publicProcedure.query(async ({ ctx: { neoDriver } }) => {
+        // Get sentiment distribution
+        const { records: distributionRecords } = await neoDriver.executeQuery(
+            GET_SENTIMENT_DISTRIBUTION_QUERY,
+            {},
+            { routing: routing.READ },
+        );
+
+        let results = distributionRecords[0]!;
+        const sentimentDistribution = {
+            positive: results.get("positivePercent") as number,
+            neutral: results.get("neutralPercent") as number,
+            negative: results.get("negativePercent") as number,
+        };
+
+        // Get emails analysed
+        const { records: totalEmailRecords } = await neoDriver.executeQuery(
+            GET_TOTAL_EMAILS_QUERY,
+            {},
+            { routing: routing.READ },
+        );
+
+        results = totalEmailRecords[0]!;
+        const emailsAnalysed = results.get("totalEmailsSent") as Integer;
+
+        // Get chatters
+        const { records: chattersRecords } = await neoDriver.executeQuery(
+            GET_USERS_WHO_SENT_MANY,
+            {},
+            { routing: routing.READ },
+        );
+
+        results = chattersRecords[0]!;
+        const chatters = results.get("chatters") as Integer;
+
         return {
-            sentimentDistribution: {
-                positive: 65,
-                neutral: 25,
-                negative: 10,
-            },
-            emailsAnalysed: 673792,
-            chatters: 3874,
+            sentimentDistribution,
+            emailsAnalysed: emailsAnalysed.toInt(),
+            chatters: chatters.toInt(),
         };
     }),
 
-    getTopCommunicators: publicProcedure.query(async ({}) => {
-        return [
-            { name: "John Smith", emails: 145, dataset: "enron" },
-            { name: "Sarah Johnson", emails: 120, dataset: "enron" },
-            { name: "Michael Brown", emails: 98, dataset: "enron" },
-            { name: "Emily Davis", emails: 85, dataset: "enron" },
-            { name: "David Wilson", emails: 72, dataset: "enron" },
-        ];
-    }),
+    getTopCommunicators: publicProcedure.query(
+        async ({ ctx: { neoDriver } }) => {
+            const { records } = await neoDriver.executeQuery(
+                GET_LARGEST_CHATTERS,
+                {},
+                { routing: routing.READ },
+            );
+
+            return records.map((rec) => ({
+                name: rec.get("userName") as string,
+                emails: (rec.get("totalEmails") as Integer).toInt(),
+                dataset: rec.get("dataset") as string,
+            }));
+        },
+    ),
 });
