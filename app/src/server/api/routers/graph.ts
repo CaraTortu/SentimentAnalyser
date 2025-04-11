@@ -63,4 +63,26 @@ export const graphRouter = createTRPCRouter({
 
             return info;
         }),
+
+    getSentimentStats: publicProcedure.query(async ({}) => {
+        return {
+            sentimentDistribution: {
+                positive: 65,
+                neutral: 25,
+                negative: 10,
+            },
+            emailsAnalysed: 673792,
+            chatters: 3874,
+        };
+    }),
+
+    getTopCommunicators: publicProcedure.query(async ({}) => {
+        return [
+            { name: "John Smith", emails: 145, dataset: "enron" },
+            { name: "Sarah Johnson", emails: 120, dataset: "enron" },
+            { name: "Michael Brown", emails: 98, dataset: "enron" },
+            { name: "Emily Davis", emails: 85, dataset: "enron" },
+            { name: "David Wilson", emails: 72, dataset: "enron" },
+        ];
+    }),
 });
