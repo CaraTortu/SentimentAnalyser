@@ -1,4 +1,5 @@
 use indicatif::{ProgressBar, ProgressStyle};
+use log::{debug, info};
 use neo4rs::{ConfigBuilder, Graph, query};
 use polars::prelude::*;
 use std::{env, error::Error, time::Duration};
@@ -16,6 +17,21 @@ RETURN sender, receiver, r
 static CREATE_PROJECT_QUERY: &str = "
 CREATE (p:Project {datasetName: $datasetName})
 RETURN p
+";
+
+static DELETE_PROJECT_QUERY: &str = "
+MATCH (p:Project {datasetName: $datasetName}), (p)-[:OWNS]->(n)
+DETACH DELETE n
+DELETE p
+";
+
+static GET_PROJECT_QUERY: &str = "
+MATCH (p:Project {datasetName: $datasetName})
+RETURN p.datasetName
+";
+
+static GET_PROJECTS_QUERY: &str = "
+MATCH (p:Project) RETURN p.datasetName as dName
 ";
 
 pub struct Neo4JService {
@@ -48,7 +64,6 @@ impl Neo4JService {
 
     pub async fn add_data(&self, df: DataFrame, project_name: &str) -> Result<(), String> {
         let project_name = project_name.to_string();
-        let sentiment_query = INSERT_SENTIMENT_QUERY.to_string();
 
         // Create project
         let creation_res = self
@@ -56,7 +71,8 @@ impl Neo4JService {
             .run(query(CREATE_PROJECT_QUERY).param("datasetName", project_name.to_string()))
             .await;
 
-        if let Err(_) = creation_res {
+        if let Err(e) = creation_res {
+            debug!("{e}");
             return Err("Could not connect to database. Is your .env okay?".into());
         }
 
@@ -89,7 +105,7 @@ impl Neo4JService {
         for row in tasks {
             let project_name = project_name.clone();
 
-            let db_query = query(&sentiment_query)
+            let db_query = query(INSERT_SENTIMENT_QUERY)
                 .param("datasetName", project_name)
                 .param("senderEmail", row.from.clone())
                 .param("receiverEmail", row.to.clone())
@@ -97,7 +113,10 @@ impl Neo4JService {
                 .param("emailsSent", row.email_count);
 
             match self.graph.run(db_query).await {
-                Err(_) => return Err("Could not connect to database. Is your .env okay?".into()),
+                Err(e) => {
+                    debug!("{}", e);
+                    return Err("Could not connect to database. Is your .env okay?".into());
+                }
                 Ok(_) => progress_bar.inc(1),
             }
         }
@@ -105,5 +124,61 @@ impl Neo4JService {
         progress_bar.finish();
 
         Ok(())
+    }
+
+    pub async fn delete_graph(&self, name: &str) -> Result<(), String> {
+        // First, check if the graph exists
+        let exists_query = query(GET_PROJECT_QUERY).param("datasetName", name);
+        let result = self.graph.execute(exists_query).await;
+
+        if let Err(e) = result {
+            debug!("{e}");
+            return Err("Could not connect to database. Is your .env okay?".to_owned());
+        }
+
+        let result_row = result.unwrap().next().await;
+
+        if let Err(e) = result_row {
+            debug!("{e}");
+            return Err("Could not get row".to_owned());
+        }
+
+        let result_row = result_row.unwrap();
+
+        if let None = result_row {
+            return Err(format!("Graph with name '{name}' does not exist"));
+        }
+
+        info!("Found graph with name '{name}'. Deleting...");
+
+        let delete_query = query(DELETE_PROJECT_QUERY).param("datasetName", name);
+        let delete_result = self.graph.run(delete_query).await;
+
+        match delete_result {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                debug!("{e}");
+                Err("Could not connect to database. Is your .env okay?".to_owned())
+            }
+        }
+    }
+
+    pub async fn get_graphs(&self) -> Result<Vec<String>, String> {
+        let mut graphs: Vec<String> = vec![];
+
+        let result = self.graph.execute(query(GET_PROJECTS_QUERY)).await;
+
+        if let Err(e) = result {
+            debug!("{e}");
+            return Err("Could not connect to database. Is your .env okay?".to_owned());
+        }
+
+        let mut result = result.unwrap();
+        while let Ok(Some(r)) = result.next().await {
+            let name: String = r.get("dName").unwrap();
+            graphs.push(name);
+        }
+
+        Ok(graphs)
     }
 }

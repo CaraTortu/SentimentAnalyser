@@ -4,7 +4,7 @@ use finalfusion::{
     prelude::{Embeddings, ReadTextDims},
     vocab::{SimpleVocab, Vocab},
 };
-use log::info;
+use log::{debug, info};
 use tensorflow::{Graph, Operation, SavedModelBundle, SessionOptions, SessionRunArgs, Tensor};
 
 pub struct SentimentAnalyser {
@@ -25,7 +25,8 @@ impl SentimentAnalyser {
         // Load vocabulary
         let glove_model = File::open(GLOVE_PATH);
 
-        if let Err(_) = glove_model {
+        if let Err(e) = glove_model {
+            debug!("{e}");
             return Err(format!("Could not load gLoVe model at '{GLOVE_PATH}'"));
         }
 
@@ -33,7 +34,8 @@ impl SentimentAnalyser {
 
         // Get embeddings
         let embeddings = Embeddings::read_text_dims(&mut reader);
-        if let Err(_) = embeddings {
+        if let Err(e) = embeddings {
+            debug!("{e}");
             return Err("Could not load embedding model".to_owned());
         }
 
@@ -47,7 +49,8 @@ impl SentimentAnalyser {
 
         // Get model
         let model_bundle = SavedModelBundle::load(&options, &["serve"], &mut graph, MODEL_PATH);
-        if let Err(_) = model_bundle {
+        if let Err(e) = model_bundle {
+            debug!("{e}");
             return Err("Could not load model".into());
         }
 
@@ -56,7 +59,8 @@ impl SentimentAnalyser {
         // Get graph serve signature
         let graph_definition = model_bundle.meta_graph_def();
         let serv_default = graph_definition.get_signature("serve");
-        if let Err(_) = serv_default {
+        if let Err(e) = serv_default {
+            debug!("{e}");
             return Err("Could not get model serve signature".into());
         }
 
@@ -64,7 +68,8 @@ impl SentimentAnalyser {
 
         // Get model input layer
         let model_input = serv_default.get_input("input_layer");
-        if let Err(_) = model_input {
+        if let Err(e) = model_input {
+            debug!("{e}");
             return Err("Could not get model input layer".into());
         }
 
@@ -73,7 +78,8 @@ impl SentimentAnalyser {
 
         // Get model output layer
         let model_output = serv_default.get_output("output_0");
-        if let Err(_) = model_output {
+        if let Err(e) = model_output {
+            debug!("{e}");
             return Err("Could not get model output layer".into());
         }
 

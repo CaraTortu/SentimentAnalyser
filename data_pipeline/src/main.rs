@@ -1,5 +1,5 @@
 mod utils;
-use clap::{Parser, command};
+use clap::{Args, Parser, Subcommand, command};
 use dotenv::dotenv;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
@@ -11,9 +11,32 @@ use utils::{
 
 static LOGGER: SimpleLogger = SimpleLogger;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(version, about, long_about=None)]
-struct Args {
+#[command(propagate_version = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+
+    /// Log debug information
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Adds a CSV file to Neo4J
+    Create(CreateArgs),
+
+    /// Deletes a dataset from Neo4J
+    Delete(DeleteArgs),
+
+    // Gets the graphs from Neo4J
+    GetGraphs,
+}
+
+#[derive(Args)]
+struct CreateArgs {
     /// Path of the CSV file to parse
     #[arg(short, long)]
     csv_path: PathBuf,
@@ -21,10 +44,6 @@ struct Args {
     /// Project name to assign in neo4j
     #[arg(short, long)]
     project_name: String,
-
-    /// Log debug information
-    #[arg(short, long, default_value_t = false)]
-    verbose: bool,
 
     /// CSV column for the email message
     #[arg(short, long)]
@@ -35,24 +54,14 @@ struct Args {
     max_emails: Option<u32>,
 }
 
-#[tokio::main]
-async fn main() {
-    // Read .env file
-    dotenv().ok();
+#[derive(Args)]
+struct DeleteArgs {
+    /// Path of the CSV file to parse
+    #[arg(short, long)]
+    dataset_name: String,
+}
 
-    // Parse CLI Arguments
-    let args = Args::parse();
-
-    // Setup logger
-    let log_level = match args.verbose {
-        true => log::LevelFilter::Debug,
-        false => log::LevelFilter::Error,
-    };
-
-    log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(log_level))
-        .expect("[-] Unable to setup logger");
-
+async fn create_cmd(args: CreateArgs) {
     // Connect to neo4j
     // We do this early to make sure we have a server connection
     let neoservice = Neo4JService::new().await;
@@ -160,5 +169,73 @@ async fn main() {
         exit(1);
     }
 
-    info!("Done!");
+    info!("Successfully created graph '{}'", args.project_name);
+}
+
+async fn delete_cmd(args: DeleteArgs) {
+    // Connect to neo4j
+    // We do this early to make sure we have a server connection
+    let neoservice = Neo4JService::new().await;
+    if let Err(_) = neoservice {
+        error!("Could not connect to Neo4J. Is your .env okay?");
+        exit(1);
+    }
+
+    let neoservice = neoservice.unwrap();
+
+    if let Err(err) = neoservice.delete_graph(&args.dataset_name).await {
+        error!("{err}");
+        exit(1);
+    }
+
+    info!("Successfully deleted graph '{}'", args.dataset_name);
+}
+
+async fn get_graphs_cmd() {
+    // Connect to neo4j
+    // We do this early to make sure we have a server connection
+    let neoservice = Neo4JService::new().await;
+    if let Err(_) = neoservice {
+        error!("Could not connect to Neo4J. Is your .env okay?");
+        exit(1);
+    }
+
+    let neoservice = neoservice.unwrap();
+    let graphs = neoservice.get_graphs().await;
+
+    match graphs {
+        Err(err) => {
+            error!("{err}");
+            exit(1);
+        }
+        Ok(graphs) => {
+            println!("Graphs:");
+            graphs.iter().for_each(|g| println!("- {g}"));
+        }
+    };
+}
+
+#[tokio::main]
+async fn main() {
+    // Read .env file
+    dotenv().ok();
+
+    // Parse CLI Arguments
+    let args = Cli::parse();
+
+    // Setup logger
+    let log_level = match args.verbose {
+        true => log::LevelFilter::Debug,
+        false => log::LevelFilter::Info,
+    };
+
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(log_level))
+        .expect("[-] Unable to setup logger");
+
+    match args.command {
+        Commands::Create(create_args) => create_cmd(create_args).await,
+        Commands::Delete(delete_args) => delete_cmd(delete_args).await,
+        Commands::GetGraphs => get_graphs_cmd().await,
+    }
 }
