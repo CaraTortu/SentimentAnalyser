@@ -31,7 +31,7 @@ enum Commands {
     /// Deletes a dataset from Neo4J
     Delete(DeleteArgs),
 
-    // Gets the graphs from Neo4J
+    /// Gets the graphs from Neo4J
     GetGraphs,
 }
 
