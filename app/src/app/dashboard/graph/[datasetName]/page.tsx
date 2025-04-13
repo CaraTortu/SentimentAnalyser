@@ -222,7 +222,7 @@ export default function LayoutFlow({
                         e.stopPropagation()
                         await form.handleSubmit()
                     }}>
-                        <h1 className="text-lg font-bold pb-4">User search</h1>
+                        <h1 className="text-lg font-bold pb-4">User search for graph &quot;{datasetName}&quot;</h1>
                         <form.Field
                             name="limit"
                             children={(field) => (
@@ -266,13 +266,18 @@ export default function LayoutFlow({
                             <Button type="submit" className="hover:cursor-pointer">Search</Button>
                         </div>
                     </form>
-                    <div className="flex flex-col">
-                        <h1 className="text-lg font-bold">Latest Searches</h1>
-                        {history.map((itm, idx) => (
-                            <div className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" key={idx} onClick={() => search(itm)}>
-                                - {itm.emailSearch} ({itm.limit})
-                            </div>
-                        ))}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col">
+                            <h1 className="text-lg font-bold">Saved Searches</h1>
+                        </div>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg font-bold">Latest Searches</h1>
+                            {history.map((itm, idx) => (
+                                <div className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" key={idx} onClick={() => search(itm)}>
+                                    - {itm.emailSearch} ({itm.limit})
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -17,6 +17,7 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/app/_components/ui/card"
 import { api } from "~/trpc/react"
+import LoadingPage from "./loading"
 
 const SENTIMENT_COLORS = ["#4ade80", "#f59e0b", "#ef4444"]
 
@@ -25,11 +26,7 @@ export default function EmailSentimentDashboard() {
     const topCommunicators = api.graphs.getTopCommunicators.useQuery()
 
     if (stats.isLoading && topCommunicators.isLoading) {
-        return (
-            <main className="flex-1 flex items-center justify-center min-h-65hv">
-                <LoaderCircleIcon className="animate-spin" size={48} />
-            </main>
-        )
+        return <LoadingPage />
     }
 
     return (

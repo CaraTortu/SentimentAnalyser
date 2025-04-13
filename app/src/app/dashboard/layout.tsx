@@ -25,12 +25,10 @@ import { auth } from "~/server/auth";
 import { LogoutButton } from "~/app/_components/pages/dashboard/logoutButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../_components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "../_components/ui/avatar";
-import { NavbarItems } from "../_components/pages/dashboard/navbarItems";
+import { NavbarItems, SidebarGraphItem } from "../_components/pages/dashboard/navbarItems";
 import { headers } from "next/headers";
 import { api } from "~/trpc/server";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../_components/ui/collapsible";
-import Link from "next/link";
-
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const user = await auth.api.getSession({
@@ -68,11 +66,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
                                 <SidebarGroupContent>
                                     <SidebarMenu>
                                         {graphNames.map((item) => (
-                                            <SidebarMenuItem key={item} className="px-2 rounded-md">
-                                                <SidebarMenuButton asChild>
-                                                    <Link href={`/dashboard/graph/${item}`}>- {item.charAt(0).toUpperCase() + item.slice(1,)}</Link>
-                                                </SidebarMenuButton>
-                                            </SidebarMenuItem>
+                                            <SidebarGraphItem key={item} item={item} />
                                         ))}
                                     </SidebarMenu>
                                 </SidebarGroupContent>

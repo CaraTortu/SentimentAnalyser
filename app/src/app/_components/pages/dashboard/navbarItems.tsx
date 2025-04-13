@@ -38,3 +38,16 @@ export const NavbarItems: React.FC = () => {
         </>
     )
 }
+
+export const SidebarGraphItem = ({ item }: { item: string }) => {
+    const location = usePathname()
+
+    return (
+        <SidebarMenuItem key={item} >
+            <SidebarMenuButton asChild>
+                <Link href={`/dashboard/graph/${item}`} className={cn(location.endsWith(item) && "bg-sidebar-accent text-sidebar-accent-foreground", "px-2 rounded-md")}>- {item.charAt(0).toUpperCase() + item.slice(1,)}</Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
+
+    )
+}
