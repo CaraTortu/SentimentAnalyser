@@ -1,4 +1,12 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+    pgTable,
+    text,
+    timestamp,
+    boolean,
+    uuid,
+    jsonb,
+} from "drizzle-orm/pg-core";
+import { type QueryPayload } from "~/lib/types";
 
 ////////////////////////
 // BETTER AUTH TABLES //
@@ -57,3 +65,13 @@ export const verification = pgTable("verification", {
 ///////////////////
 // SEARCH TABLES //
 ///////////////////
+
+export const searchQuery = pgTable("search_query", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    datasetName: text("datasetName").notNull(),
+    userId: text("userId")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").$type<QueryPayload>().notNull(),
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+});

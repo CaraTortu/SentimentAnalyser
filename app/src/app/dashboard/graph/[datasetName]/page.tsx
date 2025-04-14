@@ -10,13 +10,15 @@ import EmailNode from "~/app/_components/pages/dashboard/email-node";
 import EmailEdge from "~/app/_components/pages/dashboard/email-edge";
 import { api } from "~/trpc/react";
 import { useIsMobile } from "~/hooks/use-mobile";
-import { z } from "zod";
+import { type z } from "zod";
 import { useForm } from '@tanstack/react-form'
 import { Input } from "~/app/_components/ui/input";
 import { Button } from "~/app/_components/ui/button";
 import toast from "react-hot-toast";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "~/app/_components/ui/accordion";
 import { TooltipProvider } from "~/app/_components/ui/tooltip";
+import { searchSchema } from "~/lib/types";
+import { LoaderCircleIcon } from "lucide-react";
 
 const nodeTypes = {
     emailNode: EmailNode
@@ -26,12 +28,6 @@ const edgeTypes = {
     emailEdge: EmailEdge
 }
 
-const formSchema = z.object({
-    limit: z.number().min(1),
-    emailSearch: z.string().min(4),
-    emailsEndWith: z.string(),
-})
-
 const calculateValue = (sentiment: number, emailsSent: number) => 0.2 * Math.log(emailsSent) + sentiment
 
 export default function LayoutFlow({
@@ -39,16 +35,25 @@ export default function LayoutFlow({
 }: {
     params: Promise<{ datasetName: string }>
 }) {
+    // Get params
+    const { datasetName } = use(params)
+
     // Reactflow
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     // History
-    const [history, setHistory] = useState<z.infer<typeof formSchema>[]>([])
+    const searchHistory = api.search.getSearches.useQuery({ datasetName, limit: 10 })
+    const addSearchHistoryMutation = api.search.addSearch.useMutation()
+    const [history, setHistory] = useState<z.infer<typeof searchSchema>[]>([])
+
+    useEffect(() => {
+        if (!searchHistory.data) { return; }
+        setHistory(searchHistory.data.data.map(v => v.payload))
+    }, [searchHistory.data])
 
     // Data fetching
     const relationships = api.graphs.getRelationships.useMutation();
-    const { datasetName } = use(params)
     const [newData, setNewData] = useState(false)
     const form = useForm({
         defaultValues: {
@@ -57,11 +62,12 @@ export default function LayoutFlow({
             emailsEndWith: "",
         },
         validators: {
-            onSubmit: formSchema
+            onSubmit: searchSchema
         },
         onSubmit: async ({ value }) => {
             relationships.mutate({ email: value.emailSearch, endsWith: value.emailsEndWith, datasetName })
-            setHistory((prev) => [value, ...prev.slice(0, 10)])
+            await addSearchHistoryMutation.mutateAsync({ datasetName, ...value })
+            setHistory((old) => [value, ...old].slice(0, 10))
         }
     });
 
@@ -117,7 +123,7 @@ export default function LayoutFlow({
     }
 
     // Custom search
-    const search = (fields: string | z.infer<typeof formSchema>) => {
+    const search = (fields: string | z.infer<typeof searchSchema>) => {
         if (typeof fields === "string") {
             form.setFieldValue("emailSearch", fields)
         } else {
@@ -272,7 +278,13 @@ export default function LayoutFlow({
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold">Latest Searches</h1>
-                            {history.map((itm, idx) => (
+                            {searchHistory.isLoading && (
+                                <LoaderCircleIcon className="animate-spin mt-4" size={24} />
+                            )}
+                            {searchHistory.isSuccess && history.length === 0 && (
+                                <p className="mt-2 text-gray-400">No searches yet!</p>
+                            )}
+                            {searchHistory.isSuccess && history.map((itm, idx) => (
                                 <div className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" key={idx} onClick={() => search(itm)}>
                                     - {itm.emailSearch} ({itm.limit})
                                 </div>
