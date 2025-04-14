@@ -17,7 +17,7 @@ import { Button } from "~/app/_components/ui/button";
 import toast from "react-hot-toast";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "~/app/_components/ui/accordion";
 import { TooltipProvider } from "~/app/_components/ui/tooltip";
-import { searchSchema } from "~/lib/types";
+import { type QueryPayload, searchSchema } from "~/lib/types";
 import { LoaderCircleIcon, StarIcon } from "lucide-react";
 
 const nodeTypes = {
@@ -27,6 +27,12 @@ const nodeTypes = {
 const edgeTypes = {
     emailEdge: EmailEdge
 }
+
+const defaultFormValues = {
+    limit: 10,
+    emailSearch: "",
+    emailsEndWith: ""
+} satisfies QueryPayload
 
 const calculateValue = (sentiment: number, emailsSent: number) => 0.2 * Math.log(emailsSent) + sentiment
 
@@ -90,11 +96,7 @@ export default function LayoutFlow({
     const relationships = api.graphs.getRelationships.useMutation();
     const [newData, setNewData] = useState(false)
     const form = useForm({
-        defaultValues: {
-            limit: 10,
-            emailSearch: "",
-            emailsEndWith: ""
-        },
+        defaultValues: defaultFormValues,
         validators: {
             onSubmit: searchSchema
         },
