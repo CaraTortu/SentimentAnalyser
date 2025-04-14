@@ -1,6 +1,6 @@
 "use client"
 
-import { LoaderCircleIcon, Mail, Users } from "lucide-react"
+import { Mail, Users } from "lucide-react"
 import {
     Bar,
     BarChart as RechartsBarChart,
