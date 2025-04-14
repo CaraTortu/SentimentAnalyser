@@ -40,11 +40,79 @@ export const searchRouter = createTRPCRouter({
                 columns: {
                     id: true,
                     payload: true,
+                    saved: true,
                 },
                 orderBy: desc(searchQuery.createdAt),
                 limit: input.limit,
             });
 
-            return { sucess: true, data: queries };
+            return {
+                sucess: true,
+                data: queries.map((v) => ({
+                    ...v.payload,
+                    id: v.id,
+                    saved: v.saved,
+                })),
+            };
+        }),
+    getSavedSearches: protectedProcedure
+        .input(
+            z.object({
+                datasetName: z.string().min(1),
+            }),
+        )
+        .query(async ({ ctx: { db, session }, input }) => {
+            const queries = await db.query.searchQuery.findMany({
+                where: and(
+                    eq(searchQuery.userId, session.user.id),
+                    eq(searchQuery.datasetName, input.datasetName),
+                    eq(searchQuery.saved, true),
+                ),
+                columns: {
+                    id: true,
+                    payload: true,
+                    saved: true,
+                },
+                orderBy: desc(searchQuery.savedAt),
+            });
+
+            return {
+                sucess: true,
+                data: queries.map((v) => ({
+                    ...v.payload,
+                    id: v.id,
+                    saved: v.saved,
+                })),
+            };
+        }),
+    saveSearch: protectedProcedure
+        .input(
+            z.object({
+                saved: z.boolean(),
+                id: z.uuid(),
+            }),
+        )
+        .mutation(async ({ ctx: { session, db }, input }) => {
+            const result = await db
+                .update(searchQuery)
+                .set({
+                    saved: input.saved,
+                    savedAt: new Date(),
+                })
+                .where(
+                    and(
+                        eq(searchQuery.userId, session.user.id),
+                        eq(searchQuery.id, input.id),
+                    ),
+                );
+
+            const updatedValue = result.count === 1;
+
+            return {
+                success: updatedValue,
+                reason: !updatedValue
+                    ? "Query with that ID does not exist"
+                    : undefined,
+            };
         }),
 });

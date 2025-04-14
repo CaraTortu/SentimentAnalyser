@@ -73,5 +73,7 @@ export const searchQuery = pgTable("search_query", {
         .notNull()
         .references(() => user.id, { onDelete: "cascade" }),
     payload: jsonb("payload").$type<QueryPayload>().notNull(),
+    saved: boolean("saved").notNull().default(false),
+    savedAt: timestamp("savedAt", { mode: "date" }),
     createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
 });

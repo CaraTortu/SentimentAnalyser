@@ -18,7 +18,7 @@ import toast from "react-hot-toast";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "~/app/_components/ui/accordion";
 import { TooltipProvider } from "~/app/_components/ui/tooltip";
 import { searchSchema } from "~/lib/types";
-import { LoaderCircleIcon } from "lucide-react";
+import { LoaderCircleIcon, StarIcon } from "lucide-react";
 
 const nodeTypes = {
     emailNode: EmailNode
@@ -44,13 +44,46 @@ export default function LayoutFlow({
 
     // History
     const searchHistory = api.search.getSearches.useQuery({ datasetName, limit: 10 })
+    const savedHistoryApi = api.search.getSavedSearches.useQuery({ datasetName })
+    const [savedHistory, setSavedHistory] = useState<(z.infer<typeof searchSchema> & { id: string, saved: boolean })[]>([])
     const addSearchHistoryMutation = api.search.addSearch.useMutation()
-    const [history, setHistory] = useState<z.infer<typeof searchSchema>[]>([])
+    const [history, setHistory] = useState<(z.infer<typeof searchSchema> & { id: string, saved: boolean })[]>([])
 
     useEffect(() => {
         if (!searchHistory.data) { return; }
-        setHistory(searchHistory.data.data.map(v => v.payload))
+        setHistory(searchHistory.data.data)
     }, [searchHistory.data])
+
+    useEffect(() => {
+        if (!savedHistoryApi.data) { return; }
+        setSavedHistory(savedHistoryApi.data.data)
+    }, [savedHistoryApi.data])
+
+    // Saving queries
+    const saveSearchMutation = api.search.saveSearch.useMutation();
+
+    const saveSearch = async (entry: typeof history[number], entryIdx: number) => {
+        entry.saved = !entry.saved
+
+        setHistory((old) => {
+            old[entryIdx]!.saved = entry.saved
+            return old
+        })
+
+        if (entry.saved) {
+            setSavedHistory((old) => [entry, ...old])
+        } else {
+            setSavedHistory((old) => old.filter(v => v.id !== entry.id))
+        }
+
+        const result = await saveSearchMutation.mutateAsync(entry)
+
+        if (!result.success) {
+            toast.error(result.reason!)
+            return;
+        }
+
+    }
 
     // Data fetching
     const relationships = api.graphs.getRelationships.useMutation();
@@ -59,7 +92,7 @@ export default function LayoutFlow({
         defaultValues: {
             limit: 10,
             emailSearch: "",
-            emailsEndWith: "",
+            emailsEndWith: ""
         },
         validators: {
             onSubmit: searchSchema
@@ -67,7 +100,7 @@ export default function LayoutFlow({
         onSubmit: async ({ value }) => {
             relationships.mutate({ email: value.emailSearch, endsWith: value.emailsEndWith, datasetName })
             await addSearchHistoryMutation.mutateAsync({ datasetName, ...value })
-            setHistory((old) => [value, ...old].slice(0, 10))
+            await searchHistory.refetch()
         }
     });
 
@@ -275,6 +308,19 @@ export default function LayoutFlow({
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold">Saved Searches</h1>
+                            {savedHistoryApi.isLoading && (
+                                <LoaderCircleIcon className="animate-spin mt-4" size={24} />
+                            )}
+                            {savedHistoryApi.isSuccess && history.length === 0 && (
+                                <p className="mt-2 text-gray-400">No searches yet!</p>
+                            )}
+                            {savedHistoryApi.isSuccess && savedHistory.map((itm, idx) => (
+                                <div key={idx} className="flex gap-2">
+                                    {itm.saved ? <StarIcon fill="#fff" onClick={() => saveSearch(itm, idx)} /> : <StarIcon onClick={() => saveSearch(itm, idx)} />}
+                                    <p className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" onClick={() => search(itm)}>{itm.emailSearch} ({itm.limit})</p>
+                                </div>
+                            ))}
+
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold">Latest Searches</h1>
@@ -285,8 +331,9 @@ export default function LayoutFlow({
                                 <p className="mt-2 text-gray-400">No searches yet!</p>
                             )}
                             {searchHistory.isSuccess && history.map((itm, idx) => (
-                                <div className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" key={idx} onClick={() => search(itm)}>
-                                    - {itm.emailSearch} ({itm.limit})
+                                <div key={idx} className="flex gap-2">
+                                    {itm.saved ? <StarIcon fill="#fff" onClick={() => saveSearch(itm, idx)} /> : <StarIcon onClick={() => saveSearch(itm, idx)} />}
+                                    <p className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" onClick={() => search(itm)}>{itm.emailSearch} ({itm.limit})</p>
                                 </div>
                             ))}
                         </div>
