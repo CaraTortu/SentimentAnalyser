@@ -9,7 +9,7 @@ MATCH (p:Project) RETURN p.datasetName as name
 const GET_SENTIMENT_QUERY = `
 MATCH (p:Project { datasetName: $datasetName }),
       (p)-[:OWNS]->(u:User)-[r:SENTIMENT]-(u2:User)<-[:OWNS]-(p)
-WHERE u.email CONTAINS $email AND u2.email ENDS WITH $endsWith
+WHERE u.email STARTS WITH $email AND u2.email ENDS WITH $endsWith
 RETURN u.email, r.emailsSent, r.sentiment, u2.email
 `;
 
