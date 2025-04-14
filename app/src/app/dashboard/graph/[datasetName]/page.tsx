@@ -62,11 +62,12 @@ export default function LayoutFlow({
     // Saving queries
     const saveSearchMutation = api.search.saveSearch.useMutation();
 
-    const saveSearch = async (entry: typeof history[number], entryIdx: number) => {
+    const saveSearch = async (entry: typeof history[number]) => {
         entry.saved = !entry.saved
 
         setHistory((old) => {
-            old[entryIdx]!.saved = entry.saved
+            const entryIdx = old.findIndex(v => v.id === entry.id)
+            old[entryIdx] = entry
             return old
         })
 
@@ -312,11 +313,11 @@ export default function LayoutFlow({
                                 <LoaderCircleIcon className="animate-spin mt-4" size={24} />
                             )}
                             {savedHistoryApi.isSuccess && history.length === 0 && (
-                                <p className="mt-2 text-gray-400">No searches yet!</p>
+                                <p className="mt-2 text-gray-400">No saved searches yet!</p>
                             )}
                             {savedHistoryApi.isSuccess && savedHistory.map((itm, idx) => (
                                 <div key={idx} className="flex gap-2">
-                                    {itm.saved ? <StarIcon fill="#fff" onClick={() => saveSearch(itm, idx)} /> : <StarIcon onClick={() => saveSearch(itm, idx)} />}
+                                    <StarIcon fill={itm.saved ? "#fff" : undefined} onClick={() => saveSearch(itm)} />
                                     <p className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" onClick={() => search(itm)}>{itm.emailSearch} ({itm.limit})</p>
                                 </div>
                             ))}
@@ -332,7 +333,7 @@ export default function LayoutFlow({
                             )}
                             {searchHistory.isSuccess && history.map((itm, idx) => (
                                 <div key={idx} className="flex gap-2">
-                                    {itm.saved ? <StarIcon fill="#fff" onClick={() => saveSearch(itm, idx)} /> : <StarIcon onClick={() => saveSearch(itm, idx)} />}
+                                    <StarIcon fill={itm.saved ? "#fff" : undefined} onClick={() => saveSearch(itm)} />
                                     <p className="flex gap-2 text-blue-500 hover:underline hover:cursor-pointer" onClick={() => search(itm)}>{itm.emailSearch} ({itm.limit})</p>
                                 </div>
                             ))}
