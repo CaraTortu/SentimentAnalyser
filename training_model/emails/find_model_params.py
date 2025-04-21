@@ -1,17 +1,17 @@
 import json
 import time
-from ax.core.types import TEvaluationOutcome
-from gensim.models import KeyedVectors
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from ax.service.ax_client import AxClient, ObjectiveProperties
-from tqdm import tqdm
-import gensim.downloader
 
+import gensim.downloader
 import keras
-from keras.api.preprocessing.sequence import pad_sequences
+import numpy as np
+import pandas as pd
+from ax.core.types import TEvaluationOutcome
+from ax.service.ax_client import AxClient, ObjectiveProperties
+from gensim.models import KeyedVectors
 from keras.api.callbacks import History
+from keras.api.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from utils.utils import get_keras_model
 
@@ -21,6 +21,7 @@ MAX_TEXT_LENGTH = 800
 
 
 def find_email_params(data: pd.DataFrame, output: bool = True):
+    data = data.iloc[:500_000]
     X = data["content"]
     Y = data["sentiment"]
 
@@ -96,14 +97,16 @@ def find_email_params(data: pd.DataFrame, output: bool = True):
             "bounds": [0.01, 0.5],
             "log_scale": True,
         },
-        {"name": "lstm_units", "type": "range", "bounds": [8, 64], "value_type": "int"},
+        {"name": "lstm_units", "type": "range",
+            "bounds": [8, 64], "value_type": "int"},
         {
             "name": "neurons_dense",
             "type": "range",
             "bounds": [32, 1024],
             "value_type": "int",
         },
-        {"name": "num_epochs", "type": "range", "bounds": [1, 10], "value_type": "int"},
+        {"name": "num_epochs", "type": "range",
+            "bounds": [1, 10], "value_type": "int"},
         {
             "name": "batch_size",
             "type": "range",

@@ -1,19 +1,21 @@
 import json
+
+import gensim.downloader
+import keras
 import pandas as pd
+from gensim.models import Word2Vec
+from keras.api.callbacks import EarlyStopping, ModelCheckpoint
+from keras.api.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-from utils.utils import get_keras_model
-import gensim.downloader
-from gensim.models import Word2Vec
 
-import keras
-from keras.api.preprocessing.sequence import pad_sequences
-from keras.api.callbacks import EarlyStopping, ModelCheckpoint
+from utils.utils import get_keras_model
 
 tqdm.pandas()
 
 
 def train_email_model(data: pd.DataFrame):
+    data = data.iloc[:1_000_000]
     with open("./models/emails_modelInfo.json", "r") as f:
         relevant_data = json.load(f)
 
