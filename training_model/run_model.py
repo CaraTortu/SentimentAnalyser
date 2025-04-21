@@ -1,4 +1,3 @@
-# |%%--%%| <Zhy9EyA8zR|WmQmCOfCmu>
 import json
 import pandas as pd
 from utils.utils import clean_text
@@ -11,16 +10,12 @@ tqdm.pandas()
 import keras
 from keras.api.preprocessing.sequence import pad_sequences
 
-# |%%--%%| <WmQmCOfCmu|jceRGKedoG>
-
 # Get model to run
 model_name = input("Model name [emails, review]: ")
 
 if model_name not in ["emails", "review"]:
     print("[-] Invalid model name")
     exit(1)
-
-# |%%--%%| <jceRGKedoG|SYdAEdKUAG>
 
 print("[i] Loading word embedding model")
 embedding_model: Word2Vec = gensim.downloader.load(
@@ -36,22 +31,16 @@ def embed(txt: str):
     ]
 
 
-# |%%--%%| <SYdAEdKUAG|D0IGQ3Kf4k>
-
 # Loading model
 print("[i] Loading model...")
 model: keras.Model = keras.models.load_model(
     f"models/{model_name}_sentiment.keras"
 )  # pyright: ignore
 
-# |%%--%%| <D0IGQ3Kf4k|OKbMXO3DwA>
-
 with open(f"models/{model_name}_modelInfo.json", "r") as f:
     relevant_data = json.load(f)
 
 max_text_len = relevant_data["max_text_len"]
-
-# |%%--%%| <OKbMXO3DwA|SAn913Gkwh>
 
 in_text = ""
 while in_text != "exit":

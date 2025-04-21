@@ -67,8 +67,6 @@ def label_emails(df: pd.DataFrame, output: bool = True) -> pd.DataFrame:
         inplace=True,
     )
 
-    # |%%--%%| <WOuZsBEyF0|tZaXDzEWW8>
-
     # Clean the dates
     print("[i] Parsing dates")
     df["Date"] = pd.to_datetime(
